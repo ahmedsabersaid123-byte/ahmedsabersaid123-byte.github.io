@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ahmedsabersaid123-byte.github.io/sitemap.xml
