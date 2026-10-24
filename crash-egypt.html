@@ -483,12 +483,12 @@ function collide(a,b){if((a.remote&&b.remote)||a.gone||b.gone)return;
 const PORT=8766,wsx=()=>window.cordova&&cordova.plugins&&cordova.plugins.wsserver;
 const meId=localStorage.kcid||(localStorage.kcid=Math.random().toString(36).slice(2,10));
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let ws=null,isHost=false,curAddr='',LOBBY=[],HOSTID='',HOSTIPS=[],joinTok=0,P={},ORD=[],CU={},SRVST=false;
+let SRVGEN=0,ws=null,isHost=false,curAddr='',LOBBY=[],HOSTID='',HOSTIPS=[],joinTok=0,P={},ORD=[],CU={},SRVST=false;
 function toast(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,2200)}
 const myName=()=>{const n=$('nm').value.trim();if(!n){toast('اكتب اسمك الأول');return false}SET.name=n;saveSet();return true};
 function out(o){if(ws&&ws.readyState===1){ws.send(JSON.stringify(o));return true}return false}
 function netSend(o){if(MODE=='net')out({k:'r',d:o})}
-function netClose(){const s=ws;ws=null;try{s&&s.close()}catch(e){}if(isHost&&wsx()){try{wsx().stop(()=>{},()=>{})}catch(e){}}isHost=false;P={};ORD=[];CU={};SRVST=false;HOSTID='';LOBBY=[];NET.role=null;NET.on=false;joinTok++}
+function netClose(){const s=ws;ws=null;try{s&&s.close()}catch(e){}if(isHost&&wsx()){try{wsx().stop(()=>{},()=>{})}catch(e){}}isHost=false;P={};ORD=[];CU={};SRVST=false;HOSTID='';LOBBY=[];NET.role=null;NET.on=false;joinTok++;SRVGEN++}
 function leaveToNet(msg){const g=MODE=='net'&&state!='menu';netClose();if(g)goMenu();scr('net');toast(msg)}
 // ---- السيرفر (على موبايل المضيف) ----
 const sendC=(c,o)=>{try{wsx().send(c,JSON.stringify(o))}catch(e){}};
@@ -512,9 +512,13 @@ function bases(cb){ownIps(ips=>{const o=[];ips.forEach(a=>{if(/^(192\.168|10\.|1
 // ---- المضيف ----
 function hostGo(){const w=wsx();if(!w){alert('وضع الاستضافة بيشتغل جوه الـ APK بس');return}
  P={};ORD=[];CU={};SRVST=false;HOSTID='';LOBBY=[];HOSTIPS=[];isHost=true;NET.role='host';scr('lobby');drawLobby();$('lst').textContent='⏳ بشغّل السيرفر...';
- w.stop(go,go);
- function go(){w.start(PORT,{onFailure:(a,p,r)=>{$('lst').textContent='السيرفر وقف: '+r},onOpen:()=>{},onMessage:srvMsg,onClose:srvClose},
-  ()=>{connect('127.0.0.1');ownIps(ips=>{HOSTIPS=ips;drawLobby()})},e=>{$('lst').textContent='فشل تشغيل السيرفر: '+e})}}
+ const gen=++SRVGEN;let tries=0,up=false;
+ const begin=()=>{if(gen!==SRVGEN)return;try{w.stop(()=>setTimeout(go,400),()=>setTimeout(go,400))}catch(e){setTimeout(go,400)}};
+ function go(){if(gen!==SRVGEN)return;
+  w.start(PORT,{onFailure:(a,p,r)=>{if(gen!==SRVGEN)return;if(up){leaveToNet('⚠️ السيرفر وقف: '+r);return}if(tries<3){tries++;$('lst').textContent='⏳ بحاول تاني... ('+tries+')';setTimeout(begin,700)}else $('lst').textContent='السيرفر وقف: '+r},onOpen:()=>{},onMessage:srvMsg,onClose:srvClose},
+   ()=>{if(gen!==SRVGEN)return;up=true;connect('127.0.0.1');ownIps(ips=>{HOSTIPS=ips;drawLobby()})},
+   e=>{if(gen!==SRVGEN)return;if(tries<3){tries++;setTimeout(begin,700)}else $('lst').textContent='فشل تشغيل السيرفر: '+e})}
+ begin()}
 // ---- اللاعب: يدوّر على المضيف لوحده (سريع: كل العناوين بالتوازي) ----
 const jst=t=>{$('jst').textContent=t};
 function probe(a,ms,cb){let done=false,s,t;const fin=r=>{if(done)return;done=true;clearTimeout(t);try{s.close()}catch(e){}cb(r)};
